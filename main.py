@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 
+import httpx
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -28,7 +29,19 @@ WEB_PORT = int(os.environ.get("PORT", 8080))
 
 # ── Lifecycle ──────────────────────────────────────────────────────────────────
 
+async def log_outbound_ip():
+    """Log the outbound IP of this server — needed for proxy whitelisting."""
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get("https://api.ipify.org?format=json")
+            ip = r.json().get("ip", "unknown")
+            logger.info(f"Outbound IP (add to proxy whitelist): {ip}")
+    except Exception as e:
+        logger.warning(f"Could not determine outbound IP: {e}")
+
+
 async def on_startup(bot: Bot):
+    await log_outbound_ip()
     logger.info(f"Setting webhook: {WEBHOOK_URL}")
     await bot.set_webhook(WEBHOOK_URL)
     start_scheduler(bot)
